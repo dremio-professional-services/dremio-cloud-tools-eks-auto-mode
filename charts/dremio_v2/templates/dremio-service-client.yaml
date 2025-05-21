@@ -20,6 +20,7 @@ spec:
   selector:
     app: dremio-coordinator
   type: {{ $.Values.service.type }}
+  loadBalancerClass: {{ $.Values.service.loadBalancerClass }}
   {{- if and (eq $.Values.service.type "LoadBalancer") $.Values.service.loadBalancerIP }}
   loadBalancerIP: {{ $.Values.service.loadBalancerIP }}
   {{- end -}}

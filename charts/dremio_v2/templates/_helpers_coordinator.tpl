@@ -10,7 +10,7 @@ Coordinator - Dremio Heap Memory allocation
 {{- if le 64000 $coordinatorMemory -}}
 {{- $reserveMemory = 6000 -}}
 {{- else -}}
-{{- $reserveMemory = mulf $coordinatorMemory .05 | int -}}
+{{- $reserveMemory = mulf $coordinatorMemory .1 | int -}}
 {{- end -}}
 {{- $coordinatorMemory = sub $coordinatorMemory $reserveMemory}}
 {{- if le 18432 $coordinatorMemory -}}
@@ -32,7 +32,7 @@ Coordiantor - Dremio Direct Memory Allocation
 {{- if le 64000 $coordinatorMemory -}}
 {{- $reserveMemory = 6000 -}}
 {{- else -}}
-{{- $reserveMemory = mulf $coordinatorMemory .05 | int -}}
+{{- $reserveMemory = mulf $coordinatorMemory .1 | int -}}
 {{- end -}}
 {{- $coordinatorMemory = sub $coordinatorMemory $reserveMemory}}
 {{- if le 18432 $coordinatorMemory -}}
@@ -169,6 +169,28 @@ Coordinator - Logs Storage Class
 {{- $coordinatorLogStorageClass := $.Values.coordinator.logStorageClass -}}
 {{- if $coordinatorLogStorageClass -}}
 storageClassName: {{ $coordinatorLogStorageClass }}
+{{- end -}}
+{{- end -}}
+
+
+{{/*
+Coordinator - Prometheus Coordinator Metrics Port
+*/}}
+{{- define "dremio.coordinator.metricsPort" -}}
+{{- if $.Values.coordinator.metricsPort -}}
+- containerPort: {{ $.Values.coordinator.metricsPort }}
+  name: prometheus
+{{- end -}}
+{{- end -}}
+
+{{/*
+Coordinator - Prometheus Pod Annotations
+*/}}
+{{- define "dremio.coordinator.prometheusAnnotations" -}}
+{{- if $.Values.coordinator.metricsPort -}}
+prometheus.io/port: {{ $.Values.coordinator.metricsPort | quote }}
+prometheus.io/scrape: "true"
+prometheus.io/path: "/metrics"
 {{- end -}}
 {{- end -}}
 

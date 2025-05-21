@@ -108,6 +108,8 @@ spec:
           value: "false"
         - name: ZOO_AUTOPURGE_PURGEINTERVAL
           value: "12"
+        - name: ZOO_CFG_EXTRA
+          value: metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider metricsProvider.httpPort=9010
         image: "{{ $.Values.zookeeper.image }}:{{ $.Values.zookeeper.imageTag }}"
         resources:
           requests:
@@ -120,6 +122,8 @@ spec:
           name: server
         - containerPort: 3888
           name: leader-election
+        - containerPort: 9010
+          name: prometheus
         readinessProbe:
           exec:
             command: ["/bin/bash", "-c", "[ \"$(echo ruok | (exec 3<>/dev/tcp/127.0.0.1/2181; cat >&3; cat <&3; exec 3<&-))\" == \"imok\" ]" ]

@@ -1,0 +1,153 @@
+# Image source quay.io/dremio/dremio-ee
+image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-ee
+imageTag: 25.2.10
+
+# Image source docker.io/busybox
+busybox:
+  image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-busybox
+  imageTag: latest
+
+# Image source: bitnami/kubectl
+backup:
+  image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/kubectl
+  imageTag: latest
+  path: dremioS3:///bucket_name/master-backup
+  schedule: "0 2 * * *"
+
+storageClasses:
+  - name: dremio-master-io2
+    iops: 6000
+    type: io2
+    encrypted: true
+  - name: dremio-logs-gp3
+    iops: 1200
+    type: gp3
+    encrypted: true
+  - name: dremio-zk-gp3
+    iops: 1200
+    type: gp3
+    encrypted: true
+
+# Please use disks with local NVME for the executors.
+# The disks will be provided via emptyDir on the executors for C3 and spilling
+nodePools:
+  - name: dremio-zk-pool
+    instanceTypes: ["c6i.large"]
+    zone: eu-central-1c
+  - name: dremio-coordinator-pool
+    instanceTypes: ["r5.4xlarge", "m5.8xlarge"]
+    zone: eu-central-1c
+  - name: dremio-executor-pool
+    instanceTypes: ["r5d.4xlarge", "m5d.8xlarge"]
+    zone: eu-central-1c
+
+webAuth:
+  # values can be: none, azuread, oauth, ldap
+  type: none
+  base64encoded: false
+  configJson: |-
+    {
+      "clientId": "your_client_id",
+      "clientSecret": "your_secret",
+      "redirectUrl": "https://yourdomain/sso",
+      "authorityUrl": "https://accounts.google.com",
+      "scope": "openid profile email",
+      "jwtClaims": {
+        "userName": "email"
+      }
+    }
+
+# Dremio Coordinator
+coordinator:
+  cpu: 15
+  memory: 116736
+  count: 0
+  storageClass: dremio-master-io2
+  logStorageClass: dremio-logs-gp3
+  writeLogsToFile: true
+  nodeSelector:
+    karpenter.sh/nodepool: dremio-coordinator-pool
+  web:
+    port: 9047
+    tls:
+      enabled: false
+      # kubectl create secret tls ${TLS_SECRET_NAME} --key ${KEY_FILE} --cert ${CERT_FILE}
+      secret: dremio-tls-secret-ui
+
+  # ODBC/JDBC Client
+  client:
+    port: 31010
+    tls:
+      enabled: false
+      # kubectl create secret tls ${TLS_SECRET_NAME} --key ${KEY_FILE} --cert ${CERT_FILE}
+      secret: dremio-tls-secret-client
+
+  # Flight Client
+  flight:
+    port: 32010
+    tls:
+      enabled: false
+      # kubectl create secret tls ${TLS_SECRET_NAME} --key ${KEY_FILE} --cert ${CERT_FILE}
+      secret: dremio-tls-secret-flight
+
+# Dremio Executor
+executor:
+  cpu: 15
+  memory: 116736
+  engines: ["default"]
+  count: 1
+  logStorageClass: dremio-logs-gp3
+  writeLogsToFile: true
+  nodeSelector:
+    karpenter.sh/nodepool: dremio-executor-pool
+# Zookeeper
+# Image source docker.io/zookeeper:3.8.4-jre-17
+zookeeper:
+  # The Zookeeper image used in the cluster.
+  image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-zookeeper
+  imageTag: 3.8.4-jre-17
+  cpu: 1
+  memory: 1536
+  count: 3
+  volumeSize: 16Gi
+  storageClass: dremio-zk-gp3
+  nodeSelector:
+    karpenter.sh/nodepool: dremio-zk-pool
+
+# For more information, see https://docs.dremio.com/deployment/distributed-storage.html
+distStorage:
+  type: "aws"
+  aws:
+    bucketName: "AWS Bucket Name"
+    path: "/"
+    authentication: "metadata"
+    extraProperties: ""
+#    extraProperties: |
+#      <property>
+#        <name>fs.s3a.endpoint</name>
+#        <value>s3.eu-central-1.amazonaws.com</value>
+#      </property>
+#      <property>
+#        <name>dremio.s3.region</name>
+#        <value>eu-central-1</value>
+#      </property>
+#      <property>
+#        <name>fs.s3a.assumed.role.sts.endpoint</name>
+#        <value>sts.eu-central-1.amazonaws.com</value>
+#      </property>
+
+# Dremio Service
+# The dremio-client service exposes the service for access outside of the Kubernetes cluster.
+service:
+  type: LoadBalancer
+  loadBalancerClass: "eks.amazonaws.com/nlb"
+  # These values, when defined and not empty, override the provided shared annotations and labels.
+  # Uncomment only if you are trying to override the chart's shared values.
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-listener-attributes.TCP-31010: tcp.idle_timeout.seconds=3600
+    service.beta.kubernetes.io/aws-load-balancer-listener-attributes.TCP-32010: tcp.idle_timeout.seconds=3600
+#    helm.sh/resource-policy: keep
+#    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+#    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:eu-central-1:<your_aws_account_id>:certificate/<uid>
+

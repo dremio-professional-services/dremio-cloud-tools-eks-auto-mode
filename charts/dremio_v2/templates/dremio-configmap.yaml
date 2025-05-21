@@ -4,6 +4,13 @@ metadata:
   name: dremio-config
 data:
   {{- tpl ($.Files.Glob "config/*").AsConfig . | nindent 2 }}
+{{ if and (ne $.Values.webAuth.type "none") $.Values.webAuth.base64encoded }}
+  web-auth-conf.json: |
+{{- $.Values.webAuth.configJson | b64dec | trim | nindent 4 }}
+{{ else if ne $.Values.webAuth.type "none" }}
+  web-auth-conf.json: |
+{{- $.Values.webAuth.configJson | trim | nindent 4 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -33,6 +40,13 @@ metadata:
   name: dremio-config-{{ $engine }}
 data:
   {{- tpl ($.Files.Glob "config/*").AsConfig $ | nindent 2 }}
+{{ if and (ne $.Values.webAuth.type "none") $.Values.webAuth.base64encoded }}
+  web-auth-conf.json: |
+{{- $.Values.webAuth.configJson | b64dec | trim | nindent 4 }}
+{{ else if ne $.Values.webAuth.type "none" }}
+  web-auth-conf.json: |
+{{- $.Values.webAuth.configJson | trim | nindent 4 }}
+{{- end }}
 ---
 {{- end -}}
 {{- end -}}

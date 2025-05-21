@@ -13,11 +13,11 @@ Executor - Dremio Heap Memory Allocation
 {{- if le 64000 $engineMemory -}}
 {{- $reserveMemory = 6000 -}}
 {{- else -}}
-{{- $reserveMemory = mulf $engineMemory .05 | int -}}
+{{- $reserveMemory = mulf $engineMemory .1 | int -}}
 {{- end -}}
 {{- $engineMemory = sub $engineMemory $reserveMemory}}
 {{- if le 32786 $engineMemory -}}
-8192
+16384
 {{- else if le 6144 $engineMemory -}}
 4096
 {{- else -}}
@@ -39,11 +39,11 @@ Executor - Dremio Direct Memory Allocation
 {{- if le 64000 $engineMemory -}}
 {{- $reserveMemory = 6000 -}}
 {{- else -}}
-{{- $reserveMemory = mulf $engineMemory .05 | int -}}
+{{- $reserveMemory = mulf $engineMemory .1 | int -}}
 {{- end -}}
 {{- $engineMemory = sub $engineMemory $reserveMemory}}
 {{- if le 32786 $engineMemory -}}
-{{- sub $engineMemory 8192 -}}
+{{- sub $engineMemory 16384 -}}
 {{- else if le 6144 $engineMemory -}}
 {{- sub $engineMemory 4096 -}}
 {{- else -}}
@@ -262,29 +262,36 @@ storageClassName: {{ $logStorageClass }}
 {{/*
 Executor - Cloud Cache Peristent Volume Claims
 */}}
-{{- define "dremio.executor.cloudCache.volumeClaimTemplate" -}}
+{{- define "dremio.executor.cloudCache.volumeClaimName" -}}
 {{- $context := index . 0 -}}
 {{- $engineName := index . 1 -}}
 {{- $engineConfiguration := default (dict) (get (default (dict) $context.Values.executor.engineOverride) $engineName) -}}
-{{- $engineCloudCacheConfig := default (dict) $engineConfiguration.cloudCache -}}
-{{- $cloudCacheConfig := coalesce $engineConfiguration.cloudCache $context.Values.executor.cloudCache -}}
-{{- $cloudCacheStorageClass := coalesce $engineCloudCacheConfig.storageClass $context.Values.executor.cloudCache.storageClass $engineConfiguration.storageClass $context.Values.executor.storageClass $context.Values.storageClass -}}
-{{- if $cloudCacheConfig.enabled -}}
-{{- range $index, $cloudCacheVolumeConfig := $cloudCacheConfig.volumes }}
-{{- $volumeStorageClass := coalesce $cloudCacheVolumeConfig.storageClass $cloudCacheStorageClass }}
-- metadata:
-    name: {{ coalesce $cloudCacheVolumeConfig.name (printf "dremio-%s-executor-c3-%d" $engineName $index) }}
-  spec:
-    accessModes: ["ReadWriteOnce"]
-    {{- if $volumeStorageClass }}
-    storageClassName: {{ $volumeStorageClass }}
-    {{- end }}
-    resources:
-      requests:
-        storage: {{ $cloudCacheVolumeConfig.size }}
+{{- $volumeClaimName := default (printf "dremio-%s-executor-c3-%d" $engineName) $engineConfiguration.volumeClaimName -}}
+{{- $volumeClaimName -}}
 {{- end -}}
-{{- end -}}
-{{- end -}}
+{{/*{{- define "dremio.executor.cloudCache.volumeClaimTemplate" -}}*/}}
+{{/*{{- $context := index . 0 -}}*/}}
+{{/*{{- $engineName := index . 1 -}}*/}}
+{{/*{{- $engineConfiguration := default (dict) (get (default (dict) $context.Values.executor.engineOverride) $engineName) -}}*/}}
+{{/*{{- $engineCloudCacheConfig := default (dict) $engineConfiguration.cloudCache -}}*/}}
+{{/*{{- $cloudCacheConfig := coalesce $engineConfiguration.cloudCache $context.Values.executor.cloudCache -}}*/}}
+{{/*{{- $cloudCacheStorageClass := coalesce $engineCloudCacheConfig.storageClass $context.Values.executor.cloudCache.storageClass $engineConfiguration.storageClass $context.Values.executor.storageClass $context.Values.storageClass -}}*/}}
+{{/*{{- if $cloudCacheConfig.enabled -}}*/}}
+{{/*{{- range $index, $cloudCacheVolumeConfig := $cloudCacheConfig.volumes }}*/}}
+{{/*{{- $volumeStorageClass := coalesce $cloudCacheVolumeConfig.storageClass $cloudCacheStorageClass }}*/}}
+{{/*- metadata:*/}}
+{{/*    name: {{ coalesce $cloudCacheVolumeConfig.name (printf "dremio-%s-executor-c3-%d" $engineName $index) }}*/}}
+{{/*  spec:*/}}
+{{/*    accessModes: ["ReadWriteOnce"]*/}}
+{{/*    {{- if $volumeStorageClass }}*/}}
+{{/*    storageClassName: {{ $volumeStorageClass }}*/}}
+{{/*    {{- end }}*/}}
+{{/*    resources:*/}}
+{{/*      requests:*/}}
+{{/*        storage: {{ $cloudCacheVolumeConfig.size }}*/}}
+{{/*{{- end -}}*/}}
+{{/*{{- end -}}*/}}
+{{/*{{- end -}}*/}}
 
 {{/*
 Executor - Cloud Cache Peristent Volume Mounts
@@ -474,6 +481,7 @@ Executor - Dremio JVM Graceful Shutdown Parameters
 {{- if $nodeLifecycleServiceConfig.enabled -}}
 {{- $dremioTerminationGracePeriodSeconds := default 600 $nodeLifecycleServiceConfig.terminationGracePeriodSeconds }}
 -Ddremio.termination_grace_period_seconds={{ $dremioTerminationGracePeriodSeconds }}
+-Dservices.web-admin.enabled=true
 -Dservices.web-admin.port={{ include "dremio.executor.metricsPortNumber" $ }}
 -Dservices.web-admin.host=0.0.0.0
 -Dservices.executor.node_lifecycle_service_enabled=true

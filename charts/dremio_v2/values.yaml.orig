@@ -13,65 +13,8 @@
 # will potentially cause Dremio to upgrade versions
 # automatically during redeployments and may negatively impact
 # the cluster.
-
-# Image source quay.io/dremio/dremio-ee
-image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-ee
-imageTag: 25.2.10
-
-# Image source docker.io/busybox
-busybox:
-  image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-busybox
-  imageTag: latest
-
-# Image source: bitnami/kubectl
-backup:
-  image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/kubectl
-  imageTag: latest
-  path: dremioS3:///bucket_name/master-backup
-  schedule: "0 2 * * *"
-
-storageClasses:
-  - name: dremio-master-io2
-    iops: 6000
-    type: io2
-    encrypted: true
-  - name: dremio-logs-gp3
-    iops: 1200
-    type: gp3
-    encrypted: true
-  - name: dremio-zk-gp3
-    iops: 1200
-    type: gp3
-    encrypted: true
-
-# Please use disks with local NVME for the executors.
-# The disks will be provided via emptyDir on the executors for C3 and spilling
-nodePools:
-  - name: dremio-zk-pool
-    instanceTypes: ["c6i.large"]
-    zone: eu-central-1c
-  - name: dremio-coordinator-pool
-    instanceTypes: ["r5.4xlarge", "m5.8xlarge"]
-    zone: eu-central-1c
-  - name: dremio-executor-pool
-    instanceTypes: ["r5d.4xlarge", "m5d.8xlarge"]
-    zone: eu-central-1c
-
-webAuth:
-  # values can be: none, azuread, oauth, ldap
-  type: none
-  base64encoded: false
-  configJson: |-
-    {
-      "clientId": "your_client_id",
-      "clientSecret": "your_secret",
-      "redirectUrl": "https://yourdomain/sso",
-      "authorityUrl": "https://accounts.google.com",
-      "scope": "openid profile email",
-      "jwtClaims": {
-        "userName": "email"
-      }
-    }
+image: dremio/dremio-oss
+imageTag: latest
 
 # Annotations, labels, node selectors, and tolerations
 #
@@ -88,10 +31,7 @@ podAnnotations: {}
 labels: {}
 podLabels: {}
 nodeSelector: {}
-tolerations:
-  - key: "dremio"
-    operator: "Exists"
-    effect: "NoExecute"
+tolerations: []
 
 # Dremio Coordinator
 coordinator:
@@ -99,7 +39,7 @@ coordinator:
   # Memory allocated to each coordinator, expressed in MB.
   # CPU allocated to each coordinator, expressed in CPU cores.
   cpu: 15
-  memory: 116736
+  memory: 122800
 
   # This count is used for slave coordinators only.
   # The total number of coordinators will always be count + 1.
@@ -111,16 +51,14 @@ coordinator:
   # In most managed Kubernetes environments (AKS, GKE, etc.), the size of the disk has a direct impact on
   # the provisioned and maximum performance of the disk.
   volumeSize: 512Gi
-  metricsPort: 9010
 
   # Kubernetes Service Account
   # Uncomment below to use a custom Kubernetes service account for the coordinator.
   #serviceAccount: ""
 
   # Uncomment the lines below to use a custom set of extra startup parameters for the coordinator.
-  extraStartParams: >-
-    -Dservices.web-admin.port=9010 -Dservices.web-admin.enabled=true -Dservices.web-admin.host=0.0.0.0
-    -XX:+UseG1GC -XX:MaxGCPauseMillis=500 -XX:G1HeapRegionSize=32M -XX:InitiatingHeapOccupancyPercent=25 -XX:+AlwaysPreTouch
+  #extraStartParams: >-
+  #  -DsomeKey=someValue
 
   # Extra Init Containers
   # Uncomment the below lines to use a custom set of extra init containers for the coordinator.
@@ -142,15 +80,15 @@ coordinator:
   #extraEnvs: []
 
   # Uncomment this value to use a different storage class for the coordinator.
-  storageClass: dremio-master-io2
+  #storageClass:
 
   # Uncomment this value to use a different storage class for the coordinator logs.
-  logStorageClass: dremio-logs-gp3
+  #logStorageClass:
 
   # Whether to write coordinator logs to a file on disk. Disabled by default.
   # When enabled, log messages are logged to the console and written to a persistent volume mounted at /opt/dremio/log.
   # When disabled, log messages are logged to the console only.
-  writeLogsToFile: true
+  #writeLogsToFile: true
 
   # These values, when defined, override the provided shared annotations, labels, node selectors, or tolerations.
   # Uncomment only if you are trying to override the chart's shared values.
@@ -158,8 +96,7 @@ coordinator:
   #podAnnotations: {}
   #labels: {}
   #podLabels: {}
-  nodeSelector:
-    karpenter.sh/nodepool: dremio-coordinator-pool
+  #nodeSelector: {}
   #tolerations: []
 
   # Web UI
@@ -204,7 +141,7 @@ coordinator:
   startupProbe:
     # Max timeout for the probe is calculated as failureThreshold * periodSeconds
     # failureThreshold: Maximum number of allowed failures
-    failureThreshold: 600
+    failureThreshold: 300
     # periodSeconds: Polling frequency expressed in seconds
     periodSeconds: 1
 
@@ -212,7 +149,7 @@ coordinator:
   readinessProbe:
     # Max timeout for the probe is calculated as failureThreshold * periodSeconds
     # failureThreshold: Maximum number of allowed failures
-    failureThreshold: 360
+    failureThreshold: 120
     # periodSeconds: Polling frequency expressed in seconds
     periodSeconds: 1
 
@@ -222,23 +159,24 @@ executor:
   # Memory allocated to each executor, expressed in MB.
   # CPU allocated to each executor, expressed in CPU cores.
   cpu: 15
-  memory: 116736
+  memory: 122800
 
   # Engines
   # Engine names be 47 characters or less and be lowercase alphanumber characters or '-'.
   # Note: The number of executor pods will be the length of the array below * count.
   engines: ["default"]
-  count: 1
+  count: 3
 
-  # Executor volume size. (ignored since using emptyDir)
-  volumeSize: 300Gi
+  # Executor volume size.
+  volumeSize: 128Gi
+
   # Kubernetes Service Account
   # Uncomment below to use a custom Kubernetes service account for executors.
   #serviceAccount: ""
 
   # Uncomment the lines below to use a custom set of extra startup parameters for executors.
-  extraStartParams: >-
-    -XX:+UseG1GC -XX:MaxGCPauseMillis=500 -XX:G1HeapRegionSize=32M -XX:InitiatingHeapOccupancyPercent=25 -XX:+AlwaysPreTouch
+  #extraStartParams: >-
+  #  -DsomeKey=someValue
 
   # Extra Init Containers
   # Uncomment the below lines to use a custom set of extra init containers for executors.
@@ -260,23 +198,21 @@ executor:
   #extraEnvs: []
 
   # Uncomment this value to use a different storage class for executors.
-  # storageClass: dremio-logs-gp3
+  #storageClass:
 
   # Uncomment this value to use a different storage class for the executor logs.
-  logStorageClass: dremio-logs-gp3
+  #logStorageClass:
 
   # Whether to write executor logs to a file on disk. Disabled by default.
   # When enabled, log messages are logged to the console and written to a persistent volume mounted at /opt/dremio/log.
   # When disabled, log messages are logged to the console only.
-  writeLogsToFile: true
+  #writeLogsToFile: true
 
   # Dremio C3
   # Designed for use with NVMe storage devices, performance may be impacted when using
   # persistent volume storage that resides far from the physical node.
   cloudCache:
     enabled: true
-    volumes:
-    - size: 300Gi
 
     # Uncomment this value to use a different storage class for C3.
     #storageClass:
@@ -289,8 +225,8 @@ executor:
     # - name: "dremio-default-c3"
     #   size: 100Gi
     #   storageClass: "local-nvme"
-    #    volumes:
-    #    - size: 100Gi
+    volumes:
+    - size: 100Gi
 
   # These values, when defined and not empty, override the provided shared annotations, labels, node selectors, or tolerations.
   # Uncomment only if you are trying to override the chart's shared values.
@@ -298,8 +234,7 @@ executor:
   #podAnnotations: {}
   #labels: {}
   #podLabels: {}
-  nodeSelector:
-    karpenter.sh/nodepool: dremio-executor-pool
+  #nodeSelector: {}
   #tolerations: []
 
   # DEPRECATION NOTICE: The nodeLifecycleService feature has been deprecated and is no longer supported.
@@ -390,27 +325,26 @@ executor:
   #         storageClass: ""
 
 # Zookeeper
-# Image source docker.io/zookeeper:3.8.4-jre-17
 zookeeper:
   # The Zookeeper image used in the cluster.
-  image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-zookeeper
+  image: zookeeper
   imageTag: 3.8.4-jre-17
 
   # CPU & Memory
   # Memory allocated to each zookeeper, expressed in MB.
   # CPU allocated to each zookeeper, expressed in CPU cores.
-  cpu: 1
-  memory: 1536
+  cpu: 0.5
+  memory: 1024
   count: 3
 
-  volumeSize: 16Gi
+  volumeSize: 10Gi
 
   # Kubernetes Service Account
   # Uncomment below to use a custom Kubernetes service account for Zookeeper.
   #serviceAccount: ""
 
   # Uncomment this value to use a different storage class for Zookeeper.
-  storageClass: dremio-zk-gp3
+  #storageClass:
 
   # These values, when defined, override the provided shared annotations, labels, node selectors, or tolerations.
   # Uncomment only if you are trying to override the chart's shared values.
@@ -418,8 +352,7 @@ zookeeper:
   #podAnnotations: {}
   #labels: {}
   #podLabels: {}
-  nodeSelector:
-    karpenter.sh/nodepool: dremio-zk-pool
+  #nodeSelector: {}
   #tolerations: []
 
 # Control where uploaded files are stored for Dremio.
@@ -432,7 +365,7 @@ distStorage:
   # azure: ADLS Gen 1, additional parameters required, see "azure" section.
   # azureStorage: Azure Storage Gen2, additional parameters required, see "azureStorage" section.
   # gcp: Google Cloud Storage, additional parameters required, see "gcp" section.
-  type: "aws"
+  type: "local"
 
   # Google Cloud Storage
   #
@@ -560,20 +493,11 @@ distStorage:
     # Use the extra properties block to provide additional parameters to configure the distributed
     # storage in the generated core-site.xml file.
     #
-    extraProperties: ""
-#    extraProperties: |
-#      <property>
-#        <name>fs.s3a.endpoint</name>
-#        <value>s3.eu-central-1.amazonaws.com</value>
-#      </property>
-#      <property>
-#        <name>dremio.s3.region</name>
-#        <value>eu-central-1</value>
-#      </property>
-#      <property>
-#        <name>fs.s3a.assumed.role.sts.endpoint</name>
-#        <value>sts.eu-central-1.amazonaws.com</value>
-#      </property>
+    #extraProperties: |
+    #  <property>
+    #    <name></name>
+    #    <value></value>
+    #  </property>
 
 # Dremio Start Parameters
 # Uncomment the below lines to provide extra start paramaters to be passed directly to Dremio
@@ -613,17 +537,10 @@ extraEnvs: []
 # The dremio-client service exposes the service for access outside of the Kubernetes cluster.
 service:
   type: LoadBalancer
-  loadBalancerClass: "eks.amazonaws.com/nlb"
+
   # These values, when defined and not empty, override the provided shared annotations and labels.
   # Uncomment only if you are trying to override the chart's shared values.
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-    service.beta.kubernetes.io/aws-load-balancer-listener-attributes.TCP-31010: tcp.idle_timeout.seconds=3600
-    service.beta.kubernetes.io/aws-load-balancer-listener-attributes.TCP-32010: tcp.idle_timeout.seconds=3600
-#    helm.sh/resource-policy: keep
-#    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
-#    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:eu-central-1:<your_aws_account_id>:certificate/<uid>
-
+  #annotations: {}
   #labels: {}
 
   # If the loadBalancer supports sessionAffinity and you have more than one coordinator,
@@ -640,6 +557,10 @@ service:
   # line and set the IP to provide the static IP used for the load balancer.
   # Note: The service type must be set to LoadBalancer for this value to be used.
   #loadBalancerIP: 0.0.0.0
+
+# To use custom storage class, uncomment below.
+# Otherwise the default storage class configured for your K8s cluster is used.
+#storageClass: managed-premium
 
 # For private and protected docker image repository, you should store
 # the credentials in a kubernetes secret and provide the secret name

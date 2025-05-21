@@ -23,12 +23,16 @@ spec:
       annotations:
         dremio-configmap/checksum: {{ (tpl ($.Files.Glob "config/*").AsConfig $) | sha256sum }}
         {{- include "dremio.coordinator.podAnnotations" $ | nindent 8 }}
+        {{- include "dremio.coordinator.prometheusAnnotations" $ | nindent 8}}
+
     spec:
       {{- include "dremio.coordinator.serviceAccount" $ | nindent 6 }}
       terminationGracePeriodSeconds: 120
       {{- include "dremio.coordinator.nodeSelector" $ | nindent 6 }}
       {{- include "dremio.coordinator.tolerations" $ | nindent 6 }}
       {{- include "dremio.podSecurityContext" $ | nindent 6 }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: dremio-coordinator
         {{- include "dremio.containerSecurityContext" $ | nindent 8 }}
@@ -36,6 +40,9 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
+            cpu: {{ $.Values.coordinator.cpu }}
+            memory: {{ $.Values.coordinator.memory }}Mi
+          limits:
             cpu: {{ $.Values.coordinator.cpu }}
             memory: {{ $.Values.coordinator.memory }}Mi
         volumeMounts:
@@ -87,6 +94,7 @@ spec:
           name: server-fabric
         - containerPort: 45679
           name: server-conduit
+        {{- include "dremio.coordinator.metricsPort" $ | nindent 8 }}
         startupProbe:
           httpGet:
             path: /
@@ -109,7 +117,7 @@ spec:
       {{- include "dremio.coordinator.extraInitContainers" $ | nindent 6 }}
       - name: wait-for-dremio-master
         {{- include "dremio.containerSecurityContext" $ | nindent 8 }}
-        image: busybox
+        image: {{ $.Values.busybox.image }}:{{ $.Values.busybox.imageTag }}
         command:  ["sh", "-c", "until nc -z dremio-client {{ $.Values.coordinator.web.port }} > /dev/null; do echo Waiting for Dremio master.; sleep 2; done;"]
       {{- if $.Values.coordinator.web.tls.enabled }}
       - name: generate-ui-keystore

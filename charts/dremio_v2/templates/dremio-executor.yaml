@@ -33,6 +33,8 @@ spec:
       {{- include "dremio.executor.nodeSelector" (list $ $engineName) | nindent 6}}
       {{- include "dremio.executor.tolerations" (list $ $engineName) | nindent 6}}
       {{- include "dremio.podSecurityContext" $ | nindent 6 }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: dremio-executor
         {{- include "dremio.containerSecurityContext" $ | nindent 8 }}
@@ -42,9 +44,14 @@ spec:
           requests:
             cpu: {{ template "dremio.executor.cpu" (list $ $engineName) }}
             memory: "{{ template "dremio.executor.memory" (list $ $engineName) }}Mi"
+          limits:
+            cpu: {{ template "dremio.executor.cpu" (list $ $engineName) }}
+            memory: "{{ template "dremio.executor.memory" (list $ $engineName) }}Mi"
         volumeMounts:
-        - name: {{ template "dremio.executor.volumeClaimName" (list $ $engineName) }}
+        - name: executor-data
           mountPath: /opt/dremio/data
+        - name: executor-cloud-cache
+          mountPath: /opt/dremio/cloudcache/c0
         - name: dremio-config
           mountPath: /opt/dremio/conf
         - name: dremio-hive2-config
@@ -55,7 +62,7 @@ spec:
           mountPath: /opt/dremio/plugins/connectors/hive3.d
         - name: dremio-hive3-config
           mountPath: /opt/dremio/plugins/connectors/hive3-ee.d
-        {{- include "dremio.executor.cloudCache.volumeMounts" (list $ $engineName) | nindent 8 }}
+{{/*        {{- include "dremio.executor.cloudCache.volumeMounts" (list $ $engineName) | nindent 8 }}*/}}
         {{- include "dremio.executor.extraVolumeMounts" (list $ $engineName) | nindent 8 }}
         {{- include "dremio.executor.log.volumeMount" (list $ $engineName) | nindent 8 }}
         env:
@@ -93,7 +100,7 @@ spec:
       {{- include "dremio.executor.extraInitContainers" (list $ $engineName) | nindent 6 }}
       - name: wait-for-zookeeper
         {{- include "dremio.containerSecurityContext" $ | nindent 8 }}
-        image: busybox
+        image: "{{ $.Values.busybox.image }}:{{ $.Values.busybox.imageTag }}"
         command:  ["sh", "-c", "until nc zk-hs 2181 -w1 > /dev/null; do echo Waiting for Zookeeper to be ready.; sleep 2; done;"]
       volumes:
       - name: dremio-config
@@ -105,18 +112,23 @@ spec:
       - name: dremio-hive3-config
         configMap:
           name: dremio-hive3-config
+      - name: executor-data
+        emptyDir: {}
+      - name: executor-cloud-cache
+        emptyDir: {}
       {{- include "dremio.executor.extraVolumes" (list $ $engineName) | nindent 6 }}
       {{- include "dremio.imagePullSecrets" $ | nindent 6 }}
   volumeClaimTemplates:
   {{- include "dremio.executor.log.volumeClaimTemplate" (list $ $engineName) | nindent 2 }}
-  - metadata:
-      name: {{ template "dremio.executor.volumeClaimName" (list $ $engineName) }}
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      {{- include "dremio.executor.storageClass" (list $ $engineName) | nindent 6 }}
-      resources:
-        requests:
-          storage: {{ template "dremio.executor.volumeSize" (list $ $engineName) }}
-  {{- include "dremio.executor.cloudCache.volumeClaimTemplate" (list $ $engineName) | nindent 2 }}
+{{/*  {{- include "dremio.executor.cloudCache.volumeClaimTemplate" (list $ $engineName) | nindent 2 }}*/}}
+{{/*  - metadata:*/}}
+{{/*      name: {{ template "dremio.executor.volumeClaimName" (list $ $engineName) }}*/}}
+{{/*    spec:*/}}
+{{/*      accessModes: ["ReadWriteOnce"]*/}}
+{{/*      {{- include "dremio.executor.storageClass" (list $ $engineName) | nindent 6 }}*/}}
+{{/*      resources:*/}}
+{{/*        requests:*/}}
+{{/*          storage: {{ template "dremio.executor.volumeSize" (list $ $engineName) }}*/}}
+{{/*  {{- include "dremio.executor.cloudCache.volumeClaimTemplate" (list $ $engineName) | nindent 2 }}*/}}
 {{ end -}}
 {{- end -}}

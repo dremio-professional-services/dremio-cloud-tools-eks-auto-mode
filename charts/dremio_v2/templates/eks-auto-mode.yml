@@ -1,0 +1,52 @@
+{{- range $storageClassIndex, $storageClass := $.Values.storageClasses -}}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: "{{ $storageClass.name }}"
+  annotations:
+    helm.sh/resource-policy: keep
+provisioner: ebs.csi.eks.amazonaws.com
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: "{{ $storageClass.type }}"
+  iops: "{{ $storageClass.iops }}"
+  encrypted: "{{ $storageClass.encrypted }}"
+{{ end -}}
+{{- range $nodePoolIndex, $nodePool := $.Values.nodePools -}}
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: "{{ $nodePool.name }}"
+spec:
+  template:
+    metadata:
+      labels:
+        pool: "{{ $nodePool.name }}"
+    spec:
+      nodeClassRef:
+        group: eks.amazonaws.com
+        kind: NodeClass
+        name: default
+      taints:
+        - key: dremio
+          effect: NoExecute
+      requirements:
+        - key: "node.kubernetes.io/instance-type"
+          operator: In
+          values: {{ toYaml $nodePool.instanceTypes | nindent 12 }}
+        - key: "topology.kubernetes.io/zone"
+          operator: In
+          values: [ "{{ $nodePool.zone }}" ]
+        - key: "kubernetes.io/arch"
+          operator: In
+          values: [ "amd64" ]
+        - key: "karpenter.sh/capacity-type"
+          operator: In
+          values: [ "on-demand" ]
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 1m
+{{ end -}}
+---
