@@ -220,6 +220,7 @@ Resources:
     Metadata:
       Comment: Subnet 03
     Properties:
+      MapPublicIpOnLaunch: false
       AvailabilityZone:
         Fn::Select:
           - '0'
@@ -239,6 +240,7 @@ Resources:
     Metadata:
       Comment: Private Subnet 02
     Properties:
+      MapPublicIpOnLaunch: false
       AvailabilityZone:
         Fn::Select:
           - '1'
@@ -381,6 +383,18 @@ Resources:
           - BucketKeyEnabled: true
             ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+  VPCEndpointS3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      RouteTableIds:
+        - !Ref PrivateRouteTable01
+        - !Ref PrivateRouteTable02
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-vpce-s3"
+
 Outputs:
   ClusterName:
     Description: EKS cluster name
