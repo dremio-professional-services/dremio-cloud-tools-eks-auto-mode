@@ -38,7 +38,7 @@ spec:
           values: {{ toYaml $nodePool.instanceTypes | nindent 12 }}
         - key: "topology.kubernetes.io/zone"
           operator: In
-          values: [ "{{ $nodePool.zone }}" ]
+          values: {{ toYaml $nodePool.zones | nindent 12 }}
         - key: "kubernetes.io/arch"
           operator: In
           values: [ "amd64" ]

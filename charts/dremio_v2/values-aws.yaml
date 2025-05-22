@@ -33,13 +33,13 @@ storageClasses:
 nodePools:
   - name: dremio-zk-pool
     instanceTypes: ["c6i.large"]
-    zone: eu-central-1c
+    zones: ["eu-central-1c"]
   - name: dremio-coordinator-pool
     instanceTypes: ["r5.4xlarge", "m5.8xlarge"]
-    zone: eu-central-1c
+    zones: ["eu-central-1c"]
   - name: dremio-executor-pool
     instanceTypes: ["r5d.4xlarge", "m5d.8xlarge"]
-    zone: eu-central-1c
+    zones: ["eu-central-1c"]
 
 webAuth:
   # values can be: none, azuread, oauth, ldap
