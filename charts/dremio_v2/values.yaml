@@ -18,6 +18,10 @@
 image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-ee
 imageTag: 25.2.10
 
+# License leave empty for v25
+dremio:
+  license: ""
+
 # Image source docker.io/busybox
 busybox:
   image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-busybox
@@ -106,7 +110,7 @@ coordinator:
   # If this is greater than zero then the client and flight ports on the master
   # will be deactivated to steer these requests away from the master node.
   count: 0
-
+  upgradeStepEnabled: false
   # Coordinator data volume size (applies to the master coordinator only).
   # In most managed Kubernetes environments (AKS, GKE, etc.), the size of the disk has a direct impact on
   # the provisioned and maximum performance of the disk.

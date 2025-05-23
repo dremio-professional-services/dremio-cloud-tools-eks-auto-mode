@@ -50,6 +50,10 @@ spec:
         volumeMounts:
         - name: executor-data
           mountPath: /opt/dremio/data
+        {{- if $.Values.dremio.license }}
+        - name: dremio-license
+          mountPath: /opt/dremio/license
+        {{- end }}
         - name: executor-cloud-cache
           mountPath: /opt/dremio/cloudcache/c0
         - name: dremio-config
@@ -88,6 +92,8 @@ spec:
           value: "/opt/dremio/aws/credentials"
         {{- include "dremio.executor.log.path" (list $ $engineName) | nindent 8 }}
         {{- include "dremio.executor.extraEnvs" (list $ $engineName) | nindent 8 }}
+        - name: DREMIO_HELM_VERSION
+          value: "{{ $.Chart.Version }}"
         command: ["/opt/dremio/bin/dremio"]
         args: ["start-fg"]
         ports:
@@ -116,6 +122,14 @@ spec:
         emptyDir: {}
       - name: executor-cloud-cache
         emptyDir: {}
+      {{- if $.Values.dremio.license }}
+      - name: dremio-license
+        secret:
+          secretName: dremio-license
+          items:
+            - key: license
+              path: key
+      {{- end }}
       {{- include "dremio.executor.extraVolumes" (list $ $engineName) | nindent 6 }}
       {{- include "dremio.imagePullSecrets" $ | nindent 6 }}
   volumeClaimTemplates:

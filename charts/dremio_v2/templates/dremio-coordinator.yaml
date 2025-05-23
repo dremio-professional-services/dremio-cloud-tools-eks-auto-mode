@@ -48,6 +48,10 @@ spec:
         volumeMounts:
         - name: dremio-config
           mountPath: /opt/dremio/conf
+        {{- if $.Values.dremio.license }}
+        - name: dremio-license
+          mountPath: /opt/dremio/license
+        {{- end }}
         - name: dremio-hive2-config
           mountPath: /opt/dremio/plugins/connectors/hive2.d
         - name: dremio-hive2-config
@@ -83,6 +87,8 @@ spec:
           value: "/opt/dremio/aws/credentials"
         {{- include "dremio.coordinator.log.path" $ | nindent 8 }}
         {{- include "dremio.coordinator.extraEnvs" $ | nindent 8 }}
+        - name: DREMIO_HELM_VERSION
+          value: "{{ $.Chart.Version }}"
         command: ["/opt/dremio/bin/dremio"]
         args: ["start-fg"]
         ports:
@@ -168,6 +174,14 @@ spec:
       - name: dremio-hive3-config
         configMap:
           name: dremio-hive3-config
+      {{- if $.Values.dremio.license }}
+      - name: dremio-license
+        secret:
+          secretName: dremio-license
+          items:
+            - key: license
+              path: key
+      {{- end }}
       {{- if or $.Values.coordinator.web.tls.enabled (or $.Values.coordinator.client.tls.enabled $.Values.coordinator.flight.tls.enabled) }}
       - name: dremio-tls
         emptyDir: {}

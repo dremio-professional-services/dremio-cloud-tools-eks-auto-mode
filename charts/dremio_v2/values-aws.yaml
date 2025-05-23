@@ -2,6 +2,10 @@
 image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-ee
 imageTag: 25.2.10
 
+# License leave empty for v25
+dremio:
+  license: ""
+
 # Image source docker.io/busybox
 busybox:
   image: <your_aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/dremio-busybox
@@ -62,6 +66,7 @@ coordinator:
   cpu: 15
   memory: 116736
   count: 0
+  upgradeStepEnabled: false
   storageClass: dremio-master-io2
   logStorageClass: dremio-logs-gp3
   writeLogsToFile: true
