@@ -19,15 +19,15 @@ backup:
   schedule: "0 2 * * *"
 
 storageClasses:
-  - name: dremio-master-io2
+  - name: dremio-coordinator
     iops: 6000
     type: io2
     encrypted: true
-  - name: dremio-logs-gp3
+  - name: dremio-logs
     iops: 1200
     type: gp3
     encrypted: true
-  - name: dremio-zk-gp3
+  - name: dremio-zk
     iops: 1200
     type: gp3
     encrypted: true
@@ -66,9 +66,9 @@ coordinator:
   cpu: 15
   memory: 116736
   count: 0
-  upgradeStepEnabled: false
-  storageClass: dremio-master-io2
-  logStorageClass: dremio-logs-gp3
+  upgradeStepEnabled: true
+  storageClass: dremio-coordinator
+  logStorageClass: dremio-logs
   writeLogsToFile: true
   nodeSelector:
     karpenter.sh/nodepool: dremio-coordinator-pool
@@ -101,7 +101,7 @@ executor:
   memory: 116736
   engines: ["default"]
   count: 1
-  logStorageClass: dremio-logs-gp3
+  logStorageClass: dremio-logs
   writeLogsToFile: true
   nodeSelector:
     karpenter.sh/nodepool: dremio-executor-pool
